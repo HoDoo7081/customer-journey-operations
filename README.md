@@ -60,12 +60,12 @@ The development command starts the **frontend preview**. It does not emulate Ver
 - `scripts/` — test runner and serverless bundling.
 - `docs/` — project context, architecture, setup, validation, and interview framing.
 
-## Scope and honest limitations
+## Delivery scope
 
-This is a client-delivered small-business workflow implementation using a spreadsheet-backed store, not a demonstration of enterprise-scale throughput or a replacement for a payment processor. Privacy retention is an operating policy, not proof of an automated data-erasure job. Test deletion is a guarded soft deletion; its audit remains.
+This paid freelance engagement covered operating requirements, customer and operator workflows, Google/Notion integrations, UAT, deployment, operator guidance, and post-launch corrections. AI coding assistance was used during implementation.
 
-The production system was exercised with owner-controlled test data. The sanitized repository has separate local regression/build validation; it does not contain production credentials or a live demo backend. No conversion uplift, time savings percentage, load benchmark, or revenue impact has been measured here.
+The solution was delivered for a small-business operating context with a spreadsheet-backed store. Payment verification is manual, test deletion retains an audit, and privacy retention requires an operating process. Enterprise load capacity and quantitative business impact have not been benchmarked.
 
-Implementation used AI coding assistance. The project should be discussed in terms of requirements, delivery decisions, integration validation, and operational improvements; it should not be presented as unaided handwritten implementation or Sprinklr product experience.
+Production integration checks and this public snapshot's local regression/build checks are documented separately in [Validation](docs/VALIDATION.md). The public repository uses placeholders and does not expose the client's backend or customer data.
 
-This paid freelance project is relevant to implementation, managed services, solution consulting, customer operations, and technical customer success. It does not depend on a particular employer or vendor platform.
+The project demonstrates transferable delivery skills for implementation, managed services, solution consulting, customer operations, and technical customer success.

@@ -16,8 +16,8 @@ Explain how you clarified the operator's goal, translated it into configurations
 
 For a Lead position, this client project is useful hands-on evidence, but by itself does not establish enterprise account leadership, people management, SLA ownership, or domain platform expertise. Support those requirements with your other work experience.
 
-## If discussing Sprinklr
+## Vendor-specific roles
 
-This project does not use Sprinklr. The transferable connection is the delivery lifecycle and customer operations discipline, not product certification or hands-on Sprinklr configuration. Keep the repository vendor-neutral; tailor your resume and conversation to the actual role.
+The transferable connection is the delivery lifecycle and customer operations discipline. Describe platform-specific expertise separately from this Google/Notion implementation. Tailor your resume and conversation to the actual role.
 
 Suggested interview story: business constraint → desired customer journey → integration and operating decisions → UAT exceptions → operator enablement → post-launch correction → remaining limits.
