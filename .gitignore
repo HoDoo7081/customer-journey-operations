@@ -1,0 +1,11 @@
+**/node_modules/
+**/dist/
+**/.vercel/
+**/.env*
+!**/.env.example
+**/service.bundle.js
+.DS_Store
+work/
+backups/
+*.pem
+*.log

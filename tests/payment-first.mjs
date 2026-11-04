@@ -1,0 +1,41 @@
+import assert from 'node:assert/strict';
+import vm from 'node:vm';
+import fs from 'node:fs';
+import {bookingToken,validToken,validateV2Event,paymentFirst} from '../mockup/lib/payment-first.js';
+process.env.MAIL_WEBHOOK_SECRET='test-secret-only';
+const stores={Events:[],Applications:[]},props=new Map(),events=[],now=Date.parse('2026-11-06T00:00:00Z');
+const FixedDate=class extends Date {constructor(...args){super(...(args.length?args:[now]));}static now(){return now;}};
+props.set('BOOKING_SHEET_ID','test');props.set('CALENDAR_POLICY',JSON.stringify({calendarId:'test',weekdays:[1,2,3,4,5,6,7],businessStart:'09:00',businessEnd:'23:00'}));
+const sheet=name=>({getLastRow:()=>stores[name].length+1,getRange:(row,col,count)=>({getValues:()=>stores[name].slice(row-2,row-2+count).map(v=>[v.id,JSON.stringify(v),'']),setValues:values=>{for(let i=0;i<values.length;i++)stores[name][row-2+i]=JSON.parse(values[i][1]);}})});
+const context={Date:FixedDate,console,PropertiesService:{getScriptProperties:()=>({getProperty:k=>props.get(k),setProperty:(k,v)=>props.set(k,v),deleteProperty:k=>props.delete(k)})},SpreadsheetApp:{openById:()=>({getSheetByName:sheet}),flush(){}},LockService:{getScriptLock:()=>({tryLock:()=>true,releaseLock(){}})},Utilities:{formatDate:(d,tz,f)=>{const local=new Date(d.getTime()+9*3600000);return f==='u'?String(local.getUTCDay()||7):local.toISOString().slice(11,16);}},CalendarApp:{EventTransparency:{TRANSPARENT:'transparent'},getCalendarById:id=>id?({getEvents:(a,b)=>events.filter(e=>e.start<b&&e.end>a),getEventById:id=>events.find(e=>e.id===id),createEvent:(title,start,end,options)=>{const e={id:'calendar-'+events.length,title,start,end,options,getId(){return this.id},getStartTime(){return this.start},getEndTime(){return this.end},getTransparency(){return 'opaque'}};events.push(e);return e;}}):null}};
+vm.createContext(context);vm.runInContext(fs.readFileSync(new URL('../integrations/booking-v2.gs',import.meta.url),'utf8'),context);const call=d=>JSON.parse(JSON.stringify(context.bookingV2_(d)));
+const record={id:'11111111-1111-4111-8111-111111111111',flowVersion:2,eventId:'test-event',eventTitle:'신한은행',eventLabel:'신한은행',name:'테스트',email:'test@example.invalid',data:'{}',created:new Date(now).toISOString(),paymentDueAt:new Date(now+12*3600000).toISOString(),bookingStatus:'awaiting_payment',paymentStatus:'pending',courseSnapshot:{name:'코치 A · 1회',sessions:[{teacherId:'lee',durationMinutes:80}]},sessions:[]};
+assert.equal(call({action:'v2_create',record}).status,'ok');assert.equal(events.length,0,'unpaid application must not reserve calendar');
+assert.equal(call({action:'v2_reserve',recordId:record.id,sessionIndex:0,slot:'2026-11-07T01:00:00Z'}).status,'payment_required');
+assert.equal(call({action:'v2_paid',recordId:record.id,paymentChecked:true,reference:'UAT simulated'}).status,'ok');
+const available=call({action:'v2_availability',recordId:record.id,sessionIndex:0});assert.equal(available.status,'ok');assert(available.slots.includes('2026-11-07T12:30:00.000Z'),'weekend 21:30 is allowed');assert(!available.slots.includes('2026-11-07T13:00:00.000Z'),'22:00 +80 ends after23');
+const booked=call({action:'v2_reserve',recordId:record.id,sessionIndex:0,slot:'2026-11-07T12:30:00Z'});assert.equal(booked.record.bookingStatus,'confirmed');assert.match(events[0].title,/\[신한은행\] 테스트/);assert.equal((events[0].end-events[0].start)/60000,80);
+call({action:'v2_reserve',recordId:record.id,sessionIndex:0,slot:'2026-11-07T12:30:00Z'});assert.equal(events.length,1,'retry must not create another Calendar event');
+let policy=call({action:'v2_admin'}).policy;policy.teachers[0].blocks=[{start:'2026-11-07T21:00:00+09:00',end:'2026-11-07T23:00:00+09:00'}];assert.equal(call({action:'v2_policy',policy}).status,'existing_booking_conflict');
+policy.teachers[0].blocks=[{start:'2026-11-08T09:00:00+09:00',end:'2026-11-08T23:00:00+09:00'}];assert.equal(call({action:'v2_policy',policy}).status,'ok');
+const r2={...record,id:'22222222-2222-4222-8222-222222222222',email:'second@example.invalid'};call({action:'v2_create',record:r2});call({action:'v2_paid',recordId:r2.id,paymentChecked:true,reference:'UAT'});const times=call({action:'v2_availability',recordId:r2.id,sessionIndex:0}).slots;assert(!times.some(t=>t.startsWith('2026-11-08T01:')));assert(!times.includes('2026-11-07T12:30:00.000Z'));assert.equal(call({action:'v2_reserve',recordId:r2.id,sessionIndex:0,slot:'2026-11-07T12:30:00Z'}).status,'conflict');
+const expired={...record,id:'33333333-3333-4333-8333-333333333333',email:'expired@example.invalid',paymentDueAt:new Date(now-1).toISOString()};call({action:'v2_create',record:expired});assert.equal(call({action:'v2_record',recordId:expired.id}).record.bookingStatus,'expired');assert.equal(call({action:'v2_paid',recordId:expired.id,paymentChecked:true,reference:'Late verified payment'}).record.bookingStatus,'awaiting_schedule');
+assert(validToken(record,bookingToken(record)));assert(!validToken(r2,bookingToken(record)));assert(!validToken(record,'invalid'));
+const e={id:'shinhan-2026',flowVersion:2,paymentDeadlineHours:12,calendarLabel:'신한',status:'open',courses:[record.courseSnapshot]};assert.equal(validateV2Event(e,policy),'');assert.match(validateV2Event({...e,courses:[{...record.courseSnapshot,sessions:[{teacherId:'min',durationMinutes:50}]}]},policy),/캘린더/);assert.match(validateV2Event({...e,courses:[record.courseSnapshot,record.courseSnapshot]},policy),/1회/);
+const response=await paymentFirst({route:'booking',req:{method:'GET',query:{id:record.id,token:'fake'}},bridge:async()=>({status:'ok',record})});assert.equal(response.status,403);
+const response2=await paymentFirst({route:'confirm-payment',req:{method:'POST',body:{id:record.id}},authorized:false});assert.equal(response2.status,403);
+console.log('PASS payment-first: unpaid gate, 12h expiry, late-payment recovery, weekend/23h boundary, busy time, blocks/conflict, title, reservation retry, token scope, Shinhan single-session, missing calendar, admin authorization');
+// Two-session courses require each separate session; a retry cannot create a third event.
+policy=call({action:'v2_admin'}).policy;policy.teachers[1].calendarId='second-calendar';policy.teachers[1].weekdays=[1,2,3,4,5,6,7];policy.teachers[1].end='23:00';assert.equal(call({action:'v2_policy',policy}).status,'ok');
+const both={...record,id:'44444444-4444-4444-8444-444444444444',email:'both@example.invalid',courseSnapshot:{name:'코치 B + 코치 A · 2회',sessions:[{teacherId:'min',durationMinutes:50},{teacherId:'lee',durationMinutes:50}]}};
+call({action:'v2_create',record:both});call({action:'v2_paid',recordId:both.id,paymentChecked:true,reference:'UAT'});
+assert.equal(call({action:'v2_reserve',recordId:both.id,sessionIndex:0,slot:'2026-11-09T01:00:00Z'}).record.bookingStatus,'partially_scheduled');
+assert.equal(call({action:'v2_reserve',recordId:both.id,sessionIndex:1,slot:'2026-11-09T01:00:00Z'}).status,'conflict');
+assert.equal(call({action:'v2_reserve',recordId:both.id,sessionIndex:1,slot:'2026-11-09T03:00:00Z'}).record.bookingStatus,'confirmed');
+const count=events.length;call({action:'v2_reserve',recordId:both.id,sessionIndex:1,slot:'2026-11-09T03:00:00Z'});assert.equal(events.length,count);
+// Simulate Calendar success followed by a failed Sheets write: recover existing event.
+const original=stores.Applications.find(x=>x.id===both.id);original.sessions=original.sessions.filter(s=>s.index!==1);original.bookingStatus='partially_scheduled';
+assert.equal(call({action:'v2_reserve',recordId:both.id,sessionIndex:1,slot:'2026-11-09T03:00:00Z'}).record.bookingStatus,'confirmed');assert.equal(events.length,count);
+console.log('PASS two-session partial/final states, student overlap rejection, retry and Calendar-to-Sheets recovery');
+
+export {call,stores,props,events,record,policy,context};

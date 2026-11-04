@@ -1,0 +1,24 @@
+{
+  "functions": {
+    "api/availability.js": {
+      "maxDuration": 30
+    },
+    "api/service.bundle.js": {
+      "maxDuration": 120
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/availability",
+      "destination": "/api/availability"
+    },
+    {
+      "source": "/api/:route",
+      "destination": "/api/service.bundle?route=:route"
+    },
+    {
+      "source": "/((?!assets/|api/).*)",
+      "destination": "/index.html"
+    }
+  ]
+}

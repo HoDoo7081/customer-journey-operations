@@ -1,0 +1,1 @@
+export const statusLabels={test_deleting:'테스트 삭제 처리 중',test_deleted:'삭제한 테스트',awaiting_payment:'결제 대기',expired:'결제 기한 만료',awaiting_schedule:'결제 확인 · 일정 선택 대기',partially_scheduled:'일부 회차 예약',confirmed:'예약 확정',reserved:'기존 예약 · 결제 확인 대기',review:'운영자 확인 필요',conflict:'시간 충돌'};

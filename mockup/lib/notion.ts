@@ -1,0 +1,5 @@
+import type {EventConfig} from './model';
+export function notionPayload(record:any,event:EventConfig,databaseId:string){
+ const p=JSON.parse(record.data);const text=(s:string)=>({rich_text:[{text:{content:s.slice(0,2000)}}]});
+ return {parent:{database_id:databaseId},properties:{'이름':{title:[{text:{content:record.name}}]},'이메일':{email:record.email},'연락처':{phone_number:p.phone},'이벤트':text(event.title.replace(/\n/g,' ')),'과정':text(event.courses.find(c=>c.id===p.course)?.name||p.course),'신청ID':text(record.id),'예약일시':{date:record.slot?{start:record.slot}:null},'접수일시':{date:{start:record.created}},'접수상태':{select:{name:'접수'}},'메일상태':{select:{name:record.mailStatus}},'결제확인':{checkbox:false}},children:event.questions.flatMap((q,i)=>[{object:'block',type:'paragraph',paragraph:{rich_text:[{type:'text',text:{content:q},annotations:{bold:true}}]}},...String(p.answers[i]||'').match(/[\s\S]{1,1800}/g)?.map(answer=>({object:'block',type:'paragraph',paragraph:{rich_text:[{type:'text',text:{content:answer}}]}}))||[]])};
+}

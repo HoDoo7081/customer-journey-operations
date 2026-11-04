@@ -1,0 +1,26 @@
+{
+  "name": "customer-journey-operations",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "vite build && node ../scripts/build-api.mjs",
+    "dev": "vite --host 127.0.0.1",
+    "test": "node ../scripts/test.mjs",
+    "typecheck": "tsc --noEmit --jsx react-jsx --moduleResolution bundler --module esnext --target es2022 --allowJs --skipLibCheck --types react,react-dom,node main.tsx"
+  },
+  "dependencies": {
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
+    "lucide-react": "^1.31.0"
+  },
+  "devDependencies": {
+    "vite": "8.0.13",
+    "@vitejs/plugin-react": "6.0.2",
+    "typescript": "5.9.3",
+    "esbuild": "0.28.2",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/node": "^22.0.0"
+  }
+}

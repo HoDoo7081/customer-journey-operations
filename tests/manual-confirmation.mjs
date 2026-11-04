@@ -1,0 +1,10 @@
+import assert from 'node:assert/strict';import {confirmPayment} from '../mockup/lib/confirmation.js';
+const row={id:'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee',eventId:'test',bookingStatus:'reserved',calendarEventId:'test-event',email:'operator@example.com',name:'UAT',slot:'2026-11-02T00:00:00Z'};
+let mailCount=0;const bridge=async d=>{if(d.action==='admin_data')return{status:'ok',applications:[row],events:[{id:'test',title:'테스트'}]};if(d.action==='update_application'){Object.assign(row,d.patch);return{status:'ok'}}mailCount++;return{status:'sent'}};
+const input={body:{id:row.id,paymentChecked:true,reference:'TEST-order-001'},authorized:true,bridge,owner:'operator@example.com'};
+assert.equal((await confirmPayment({...input,authorized:false})).status,403);
+assert.equal((await confirmPayment({...input,body:{...input.body,paymentChecked:false}})).status,400);
+row.bookingStatus='review';assert.equal((await confirmPayment(input)).status,409);row.bookingStatus='reserved';
+assert.equal((await confirmPayment(input)).status,200);assert.equal(row.bookingStatus,'confirmed');assert.equal(row.paymentStatus,'verified');assert.equal(row.confirmationMailStatus,'sent');assert.equal(mailCount,1);
+assert.equal((await confirmPayment(input)).data.alreadyConfirmed,true);assert.equal(mailCount,1);
+console.log('PASS: authorization, payment attestation, reserved-only gate, audit fields, confirmation mail, duplicate confirmation prevention');
